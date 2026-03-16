@@ -1,0 +1,178 @@
+    1  nano ~/.bashrc
+    2  cd
+    3  wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+    4  bash Miniconda3-latest-Linux-x86_64.sh
+    5  source ~/.bashrc
+    6  conda create --name bioinfo_env python=3.9
+    7  conda activate bioinfo_env
+    8  conda config --add channels defaults
+    9  conda config --add channels bioconda
+   10  conda config --add channels conda-forge
+   11  conda install -c bioconda autodock-vina
+   12  vina
+   13  conda install -c conda-forge openbabel
+   14  conda install -c bioconda mgltools
+   15  sudo apt-get update
+   16  sudo apt-get install r-base
+   17  sudo apt-get install libssl-dev libcurl4-gnutls-dev libxml2-dev
+   18  wget https://download2.rstudio.org/server/ubuntu2004/amd64/rstudio-server-2022.07.1-554-amd64.deb
+   19  wget https://download2.rstudio.org/server/jammy/amd64/rstudio-server-2025.05.1-513-amd64.deb
+   20  sudo gdebi rstudio-server-2025.05.1-513-amd64.deb
+   21  sudo rstudio-server status
+   22  sudo apt-get install gdebi-core -y
+   23  sudo gdebi rstudio-server-2025.05.1-513-amd64.deb
+   24  clear
+   25  ls
+   26  conda deactivate
+   27  ls
+   28  conda activate bioinfo_env
+   29  cd
+   30  ls
+   31  cd Bioinformática/
+   32  ls
+   33  cd NAMD/
+   34  cd
+   35  cd ~
+   36  mkdir Proyectos_Bioinfo
+   37  cd Proyectos_Bioinfo
+   38  mkdir NAMD_Work
+   39  mkdir R_Analisis
+   40  ls
+   41  clear
+   42  ls
+   43  cd Bioinformatica/
+   44  cd NAMD/
+   45  wget https://www.ks.uiuc.edu/Development/Download/download.cgi?PackageName=NAMD&FileID=1658 -O namd2.tar.gz
+   46  s
+   47  ls
+   48  tar -xvzf NAMD_3.0.2_Linux-x86_64-multicore.tar.gz 
+   49  ls
+   50  cd NAMD_3.0.2_Linux-x86_64-multicore/
+   51  ls
+   52  cd ..
+   53  ls
+   54  cd NAMD_3.0.2_Linux-x86_64-multicore/
+   55  echo "alias namd2='$(pwd)/namd2'" >> ~/.bashrc
+   56  source ~/.bashrc
+   57  namd2
+   58  nano ~/.bashrc
+   59  echo "alias namd3='/home/jose/Bioinformatica/NAMD/NAMD_3.0.2_Linux-x86_64-multicore/namd3'" >> ~/.bashrc
+   60  source ~/.bashrc
+   61  namd3
+   62  nano ~/.bashrc
+   63  source ~/.bashrc
+   64  export PS1="bedoya@\h:\w\$ "
+   65  clear
+   66  mkdir -p proyecto_plast/data proyecto_plast/scripts proyecto_plast/results proyecto_plast/figures
+   67  ls
+   68  cd proyecto_plast/
+   69  ls
+   70  conda create -n bio_plast mafft iqtree blast entrez-direct trimal -y
+   71  conda activate bio_plast
+   72  esearch -db protein -query "CBF87277.1" | efetch -format fasta > data/ref_petase.fasta
+   73  blastp -query data/ref_petase.fasta -db nr -remote        -entrez_query "Rhodopseudomonas OR Bradyrhizobium OR Rahnella"        -outfmt "6 qseqid sseqid pident length evalue bitscore stitle"        -max_target_seqs 100 > results/homologs_blast_results.tab
+   74  blastp -query data/ref_petase.fasta -db nr -remote        -entrez_query "Rhodopseudomonas OR Bradyrhizobium OR Rahnella"        -outfmt "6 qseqid sseqid pident length evalue bitscore stitle"        -max_target_seqs 100 > results/homologs_blast_results.tab
+   75  blastp -query data/ref_petase.fasta -db nr -remote        -entrez_query "Rhodopseudomonas [ORGN] OR Bradyrhizobium [ORGN] OR Rahnella [ORGN]"        -outfmt "6 qseqid sseqid pident length evalue bitscore stitle"        -max_target_seqs 100 > results/homologs_blast_results.tab
+   76  awk '$3 > 35 && $5 < 1e-10' results/homologs_blast_results.tab > results/filtered_homologs.tab
+   77  cut -f2 results/filtered_homologs.tab | sort -u | epost -db protein | efetch -format fasta > data/candidate_sequences.fasta
+   78  ls
+   79  cd results/
+   80  cut -f2 results/filtered_homologs.tab | sort -u | epost -db protein | efetch -format fasta > data/candidate_sequences.fasta
+   81  ls -la results/filtered_homologs.tab
+   82  ls -la filtered_homologs.tab
+   83  head -5 homologs_blast_results.tab
+   84  wc -l homologs_blast_results.tab
+   85  cd ~/proyecto_plast
+   86  esearch -db protein -query "BAK53910.1" | efetch -format fasta > data/real_petase.fasta
+   87  ls -la data/real_petase.fasta
+   88  head data/real_petase.fasta
+   89  blastp -query data/real_petase.fasta -db nr -remote        -outfmt "6 qseqid sseqid pident length evalue bitscore stitle"        -max_target_seqs 100 > results/homologs_blast_results.tab
+   90  wc -l results/homologs_blast_results.tab
+   91  head -5 results/homologs_blast_results.tab
+   92  awk '$3 > 35 && $5 < 1e-10' results/homologs_blast_results.tab > results/filtered_homologs.tab
+   93  echo "Secuencias que pasaron el filtro:"
+   94  wc -l results/filtered_homologs.tab
+   95  cut -f2 results/filtered_homologs.tab | sort -u | epost -db protein | efetch -format fasta > data/candidate_sequences.fasta
+   96  mkdir -p tmp_batches
+   97  cut -f2 results/filtered_homologs.tab | sort -u | split -l 50 - tmp_batches/batch_
+   98  for batch in tmp_batches/batch_*; do     echo "Procesando $batch...";     cat $batch | epost -db protein | efetch -format fasta >> data/candidate_sequences.fasta
+    sleep 2; done
+   99  cut -f2 results/filtered_homologs.tab | sort -u |     grep -E '^[A-Z0-9_]+\.\d+' > clean_ids.txt
+  100  echo "IDs válidos:"
+  101  wc -l clean_ids.txt
+  102  cut -f2 results/filtered_homologs.tab | sort -u | head -10
+  103  cut -f2 results/filtered_homologs.tab | sort -u > all_ids_raw.txt
+  104  echo "Primeros 20 IDs (para ver el formato):"
+  105  head -20 all_ids_raw.txt
+  106  cut -f2 results/filtered_homologs.tab | sort -u |     sed 's/^[a-z]*|//; s/|$//' > clean_ids.txt
+  107  echo "IDs después de limpiar:"
+  108  wc -l clean_ids.txt
+  109  head -5 clean_ids.txt
+  110  cd ~/proyecto_plast
+  111  > data/candidate_sequences.fasta
+  112  cut -f2 results/filtered_homologs.tab | sort -u |     sed 's/^[a-z]*|//; s/|$//' > clean_ids.txt
+  113  wc -l clean_ids.txt
+  114  > data/candidate_sequences.fasta
+  115  counter=0
+  116  total=$(wc -l < clean_ids.txt)
+  117  while read id; do     counter=$((counter + 1));     echo "Descargando $counter de $total: $id";     esearch -db protein -query "$id" | efetch -format fasta >> data/candidate_sequences.fasta;     sleep 1  # Pausa para respetar NCBI
+done < clean_ids.txt
+  118  echo "Secuencias descargadas:"
+  119  grep -c ">" data/candidate_sequences.fasta
+  120  cut -f2 results/filtered_homologs.tab | sort -u |     sed 's/^[a-z]*|//; s/|$//' > clean_ids.txt
+  121  wc -l clean_ids.txt
+  122  head -10 clean_ids.txt
+  123  awk 'BEGIN{OFS="\t"} {
+    # Limpia la columna 2 (sseqid) eliminando prefijos como dbj|, gb|, etc. y el | final
+    gsub(/^[a-z]*\|/, "", $2);
+    gsub(/\|$/, "", $2);
+    print $0
+}' results/homologs_blast_results.tab > results/homologs_blast_results_clean.tab
+  124  echo "Primeras líneas con IDs limpios:"
+  125  head -5 results/homologs_blast_results_clean.tab
+  126  awk '$3 > 35 && $5 < 1e-10' results/homologs_blast_results_clean.tab > results/filtered_homologs.tab
+  127  wc -l results/filtered_homologs.tab
+  128  cut -f2 results/filtered_homologs.tab | sort -u > ids_to_download.txt
+  129  echo "IDs únicos a descargar:"
+  130  wc -l ids_to_download.txt
+  131  cat ids_to_download.txt | epost -db protein | efetch -format fasta > data/candidate_sequences.fasta
+  132  cut -f2 results/filtered_homologs.tab | sort -u > ids_to_download.txt
+  133  wc -l ids_to_download.txt
+  134  > data/candidate_sequences.fasta
+  135  split -l 15 ids_to_download.txt batch_
+  136  for batch in batch_*; do     echo "Procesando lote: $batch (contiene $(wc -l < $batch) IDs)"; for batch in batch_*; do     echo "Procesando lote: $batch (contiene $(wc -l < $batch) IDs)";     
+    ids=$(cat $batch | tr '\n' ',' | sed 's/,$//');     
+    esearch -db protein -query "$ids" | efetch -format fasta >> data/candidate_sequences.fasta;     
+    sleep 3;     
+    rm $batch; done
+  137  # Asegúrate de que el archivo de salida está vacío
+  138  > data/candidate_sequences.fasta
+  139  # Divide en lotes de 15
+  140  split -l 15 ids_to_download.txt batch_
+  141  # Ejecuta el bucle completo (copia TODO esto y pégalo de una vez)
+  142  for batch in batch_*; do     echo "Procesando lote: $batch (contiene $(wc -l < $batch) IDs)";     ids=$(cat $batch | tr '\n' ',' | sed 's/,$//');     echo "Descargando IDs: $ids";     esearch -db protein -query "$ids" | efetch -format fasta >> data/candidate_sequences.fasta;     sleep 3;     rm $batch;     echo "Lote completado, pausa de 3 segundos..."; done
+  143  # Verifica resultado
+  144  echo "Secuencias descargadas:"
+  145  grep -c ">" data/candidate_sequences.fasta
+  146  mafft --localpair --maxiterate 1000 data/candidate_sequences.fasta > results/alignment_full.fasta
+  147  echo "Primeras líneas del alineamiento:"
+  148  head -20 results/alignment_full.fasta
+  149  echo "Número de secuencias en el alineamiento:"
+  150  grep -c ">" results/alignment_full.fasta
+  151  trimal -in results/alignment_full.fasta -out results/alignment_trimmed.fasta -automated1
+  152  echo "Longitud original del alineamiento:"
+  153  awk '/^>/ {if (seqlen) print seqlen; seqlen=0; next} {seqlen += length($0)} END {print seqlen}' results/alignment_full.fasta
+  154  echo "Longitud después de trimAl:"
+  155  awk '/^>/ {if (seqlen) print seqlen; seqlen=0; next} {seqlen += length($0)} END {print seqlen}' results/alignment_trimmed.fasta
+  156  iqtree -s results/alignment_trimmed.fasta -m MFP -bb 1000 -nt AUTO
+  157  cat results/alignment_trimmed.fasta.treefile
+  158  awk '$3 > 35 && $5 < 1e-10' results/homologs_blast_results_clean.tab |     grep -iE "petase|cutinase|lipase|esterase|hydrolase|polyesterase|depolymerase|PETase"     > results/filtered_homologs_keywords.tab
+  159  echo "Secuencias después de filtro por palabras clave:"
+  160  wc -l results/filtered_homologs_keywords.tab
+  161  blastp -query data/real_petase.fasta -db nr -remote        -entrez_query "Rhodopseudomonas [ORGN] OR Bradyrhizobium [ORGN] OR Rahnella [ORGN]"        -outfmt "6 qseqid sseqid pident length evalue bitscore stitle"        -max_target_seqs 500 > results/homologs_relaxed.tab
+  162  awk '$3 > 20 && $5 < 0.001' results/homologs_relaxed.tab |     grep -iE "hydrolase|esterase|lipase|carboxylesterase|alpha/beta"     > results/possible_homologs.tab
+  163  wc -l results/possible_homologs.tab
+  164  # 1. Crear carpeta para documentación
+  165  mkdir -p proyecto_plasticos/documentacion
+  166  # 2. Guardar historial completo
+  167  history > proyecto_plasticos/documentacion/historial_completo_$(date +%Y%m%d).txt

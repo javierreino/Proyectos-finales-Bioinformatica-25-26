@@ -1,0 +1,130 @@
+bash
+# Actualizar lista de paquetes
+apt-get update
+
+# Instalar BLAST+ (Herramienta de búsqueda de similitud local)
+apt-get install ncbi-blast+
+
+Python
+
+# DEFINIR CONTENIDO DE GENES
+contenido_genes = """>zntA
+ATGTCGACTCCTGACAATCACGGCAAGAAAGCCCCTCAATTTGCTGCTTCAACCGCTAACCACGGTAC
+AGAACGCCAACGACTGTTGCTGCGACGGCGCTAGTTCCAGCACGCCCAACTCTCTCTGAAAACTCTCCGG
+CACCCGCTATAGCTGGAAAGTCAGCGCATGGACTGCGCCGCCTGTGCGCGCAAGGTAGAAAATGCGCTG
+CGCCAGCTTGCAGGCGTGAATCGTTGCTGCGCTGCAAAAGACGAGCTATTCCCTGCGCGATGAACAGGCCGC
+CGAAGAACCGCAAACTCACGCTGAAGAAAGAGGAATCTGCGCTGTATTACGCTAATCGTTGTTGGCAATC
+AGCTGGGGTCTGGAGACGATTCATCCGTTGCGGCAAACTGGGTTTATCGGCACACGCTGGTTGGGC
+TGTACCCGATTGCTCGTCGACGATTACGGTTGATC
+TTTCATGATTATCTGCGGCGAGAAACACCAGCAGCGGCGACTGCTAGGAAGCTATTGGAATTAGAAACGC
+GAGCGTTAGCCGCTATTGGTGCACTGTTTATTGGGCG
+GTTATTGCCGTCAGGAACCGTTATATTACCCTGGGGCGTTATTACTGTCACCGCCGCCAAACCGCAAG
+TTCATTCGTCACACACTCGCAACCGCCCCACAC
+CAAGGATAAAGTAGA"""
+
+# Crear archivo FASTA con las secuencias de genes de resistencia
+with open("Genes_resistencia_db.fasta", "w") as f:
+    f.write(contenido_genes.strip())
+print("Archivo 'Genes_resistencia_db.fasta' creado correctamente.")
+
+# Lista de genomas a analizar
+genomas = ["E_coli_K12.fasta", "E_coli_0157.fasta", "E_coli_UTI89.fasta"]
+
+# Bucle para analizar cada genoma
+for g in genomas:
+    nombre_base = g.replace(".fasta", "")
+    output_name = f"hits_{nombre_base}_filtered.tsv"
+    
+    print(f"Analizando genoma: {g}...")
+    
+    # Comando BLASTN con parámetros específicos
+    !blastn -query {g} -db db_metales -out {output_name} -outfmt "6 qseqid sseqid pident length qcovs evalue bitscore" -perc_identity 80 -strand both -evalue 1e-5
+    
+print("\nBLAST terminado. TSV generados con éxito.")
+
+# MATRIZ PRESENCIA-AUSENCIA
+import pandas as pd
+import os
+
+# 1. Lista de genes
+genes = ["zntA", "czcD", "copA", "cusA", "merA", "MerB", "czcA", "smtA"]
+
+# 2. Lista de genomas
+genomes = ["E_coli_K12", "E_coli_0157", "E_coli_UTI89"]
+
+# Crear matriz vacía llena de ceros
+M = pd.DataFrame(0, index=genomes, columns=genes)
+
+# Loop sobre cada genoma
+for g in genomes:
+    file = f"hits_{g}_filtered.tsv"
+    
+    # Verificar si el archivo existe
+    if os.path.exists(file):
+        df = pd.read_csv(
+            file,
+            sep="\t",
+            header=None,
+            names=["qseqid", "sseqid", "pident", "length", "qcovs", "evalue", "bitscore"]
+        )
+        
+        # Obtener lista de genes presentes
+        present = set(df["sseqid"])
+        
+        # Marcar presencia
+        for gene in genes:
+            if any(gene in s for s in present):
+                M.loc[g, gene] = 1
+
+# Guardar resultado
+M.to_csv("presencia_ausencia_metales_final.csv")
+print("Matriz generada con éxito:")
+print(M)
+
+# CÓDIGO HEATMAP
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Configurar el estilo y tamaño
+plt.figure(figsize=(10, 6))
+
+# Crear el heatmap
+ax = sns.heatmap(
+    M, 
+    annot=True,           # Muestra los números (1 y 0)
+    cmap="YlGnBu",         # Esquema de colores: Amarillo, Verde, Azul
+    linewidths=.5,         # Líneas entre celdas
+    cbar_kws={'label': 'Presencia (1) / Ausencia (0)'}
+)
+
+# Configurar títulos y etiquetas
+plt.title('Heatmap de Genes de Resistencia a Metales en E. coli', fontsize=15)
+plt.xlabel('Genes de Resistencia', fontsize=12)
+plt.ylabel('Cepas de E. coli', fontsize=12)
+
+# Ajustar y guardar
+plt.tight_layout()
+plt.savefig("heatmap_metales.png", dpi=300)  # Guardar en alta calidad
+plt.show()
+
+# Crear Clustermap (Heatmap + Dendrogramas)
+g = sns.clustermap(
+    M,
+    annot=True,
+    cmap="YlGnBu",
+    linewidths=.5,
+    figsize=(10, 8),
+    metric="jaccard",      # Métrica ideal para datos binarios (0/1)
+    method="complete",      # Método para agrupamiento jerárquico
+    cbar_kws={'label': 'Presencia (1) / Ausencia (0)'}
+)
+
+# Ajustar títulos y rotación
+plt.setp(g.ax_heatmap.get_xticklabels(), rotation=45)
+g.fig.suptitle('Clustermap de Genes de Resistencia a Metales', fontsize=16, y=1.02)
+
+# Guardar imagen
+plt.savefig("clustermap_metales.png", dpi=300, bbox_inches='tight')
+
+# Mostrar
+plt.show()
