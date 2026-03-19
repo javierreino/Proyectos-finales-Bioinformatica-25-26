@@ -1,0 +1,171 @@
+# Descarga del genoma completo de Streptomyces coelicolor A3(2)
+# Referencia: NC_003888.3
+
+# Opción 1: Usando wget (desde FTP de NCBI)
+wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/203/835/GCF_000203835.1_ASM20383v1/GCF_000203835.1_ASM20383v1_genomic.gbff.gz
+gunzip GCF_000203835.1_ASM20383v1_genomic.gbff.gz
+mv GCF_000203835.1_ASM20383v1_genomic.gbff Streptomyces_coelicolor_A3_2.gb
+
+# Opción 2: Usando ncbi-genome-download
+pip install ncbi-genome-download
+ncbi-genome-download -A NC_003888.3 bacteria -o genomas/
+
+# Opción 3: Usando esearch y efetch (entrez-direct)
+esearch -db nucleotide -query "NC_003888.3" | efetch -format gb > Streptomyces_coelicolor_A3_2.gb
+# Instalación mediante conda (recomendado)
+conda create -n antismash python=3.8
+conda activate antismash
+conda install -c bioconda antismash
+
+# Descargar bases de datos (requerido para antiSMASH)
+download-antismash-databases
+
+# Verificar instalación
+antismash --version
+# Ejecutar antiSMASH en el genoma de Streptomyces coelicolor
+antismash --genefinding-tool prodigal \
+          --output-dir antismash_S_coelicolor \
+          --clusterblast \
+          --asf \
+          --full-hmmer \
+          --cassis \
+          --cb-known \
+          --cb-general \
+          --pfam2go \
+          --rre \
+          --cc-mibig \
+          Streptomyces_coelicolor_A3_2.gb
+# Ejecución optimizada para Streptomyces (con más herramientas)
+antismash --genefinding-tool prodigal \
+          --output-dir antismash_S_coelicolor_detallado \
+          --clusterblast \
+          --asf \
+          --full-hmmer \
+          --cassis \
+          --cb-known \
+          --cb-general \
+          --pfam2go \
+          --rre \
+          --cc-mibig \
+          --tigrfam \
+          --smcog \
+          --tta-ec  # Detección de codones TTA (regulación en Streptomyces)
+# Listar todas las regiones identificadas
+cat antismash_S_coelicolor/*.json | grep -E "region|product"
+
+# Extraer regiones específicas (actinorhodina - T2PKS)
+# Región 12: T2PKS (actinorhodin) - coordenadas 5,494,930 - 5,567,424
+grep -A 20 -B 20 "actinorhodin" antismash_S_coelicolor/*.html
+
+# Extraer región de undecylprodigiosina
+# Región 17: prodigiosin - coordenadas 6,423,650 - 6,476,442
+grep -A 20 -B 20 "undecylprodigiosin" antismash_S_coelicolor/*.html
+# Extraer secuencia de la región de actinorhodina usando samtools/seqkit
+# Instalar seqkit
+conda install -c bioconda seqkit
+
+# Extraer región del genoma (ejemplo para actinorhodina)
+seqkit subseq --region 5494930:5567424 Streptomyces_coelicolor_A3_2.fasta > region_actinorhodina.fasta
+
+# Extraer región de undecylprodigiosina
+seqkit subseq --region 6423650:6476442 Streptomyces_coelicolor_A3_2.fasta > region_undecylprodigiosina.fasta
+# Buscar genes del clúster de actinorhodina en los resultados
+grep -i "act" antismash_S_coelicolor/region12/*.gbk
+grep -i "actII" antismash_S_coelicolor/region12/*.gbk
+grep -i "actIII" antismash_S_coelicolor/region12/*.gbk
+
+# Extraer secuencias de genes específicos
+python -c "
+from Bio import SeqIO
+record = SeqIO.read('Streptomyces_coelicolor_A3_2.gb', 'genbank')
+for feature in record.features:
+    if feature.type == 'CDS' and 'act' in str(feature.qualifiers.get('gene', [''])):
+        print(f\"Gen: {feature.qualifiers.get('gene', ['unknown'])[0]}\")
+        print(f\"PosiciÃ³n: {feature.location}\")
+        print(f\"Producto: {feature.qualifiers.get('product', ['unknown'])[0]}\")
+        print('-'*50)
+"
+# Instalar HMMER
+conda install -c bioconda hmmer
+
+# Buscar dominios conservados en genes de NRPS/PKS
+hmmsearch --domtblout dominios_actinorhodina.txt /path/to/Pfam/PF00668.hmm region_actinorhodina.fasta
+# Extraer tabla completa de regiones del JSON de antiSMASH
+python -c "
+import json
+with open('antismash_S_coelicolor/S_coelicolor.json', 'r') as f:
+    data = json.load(f)
+    
+print('RegiÃ³n | Tipo | Desde | Hasta | Similitud | ClÃºster conocido')
+print('-'*80)
+for record in data.get('records', []):
+    for region in record.get('regions', []):
+        products = ','.join(region.get('products', []))
+        print(f\"Region {region.get('region_number')} | {products} | {region.get('start')} | {region.get('end')} | {region.get('similarity', '')} | {region.get('known_cluster', '')}\")
+")
+# Región 12: T2PKS - actinorhodin (5,494,930 - 5,567,424)
+echo "=== ANÁLISIS DE ACTINORHODINA ==="
+echo "Tamaño del clúster: $((5567424 - 5494930)) pb"
+echo "Tipo: PKS Tipo II (aromático)"
+echo "Actividad: Antibiótico activo contra bacterias Gram positivas"
+
+# Extraer genes del clúster
+grep -A 5 "act" antismash_S_coelicolor/region12/region12.gbk
+# Región 17: prodigiosin (6,423,650 - 6,476,442)
+echo "=== ANÁLISIS DE UNDECILPRODIGIOSINA ==="
+echo "Tamaño del clúster: $((6476442 - 6423650)) pb"
+echo "Tipo: NRPS-like + T1PKS"
+echo "Actividad: Pigmento rojo con actividad antibacteriana y citotóxica"
+
+# Extraer genes del clúster
+grep -A 5 "red" antismash_S_coelicolor/region17/region17.gbk
+grep -A 5 "prodigiosin" antismash_S_coelicolor/region17/region17.gbk
+# Instalar clinker para visualización de sintenia
+pip install clinker
+
+# Crear visualización de los clústeres principales
+clinker antismash_S_coelicolor/region12/region12.gbk \
+        antismash_S_coelicolor/region17/region17.gbk \
+        -o clinker_output \
+        -p S_coelicolor_clusters.html \
+        -i 30
+# antiSMASH genera automáticamente archivos HTML interactivos
+# Abrir en navegador
+firefox antismash_S_coelicolor/index.html
+
+# También genera imágenes PNG de cada región
+ls antismash_S_coelicolor/region12/*.png
+# Buscar clústeres similares en base de datos MIBiG
+grep -i "actinorhodin" antismash_S_coelicolor/*.json | grep -i "mibig"
+grep -i "prodigiosin" antismash_S_coelicolor/*.json | grep -i "mibig"
+
+# Extraer accesos MIBiG para comparación
+# actinorhodin: BGC0000197 (MIBiG)
+# undecylprodigiosin: BGC0001061 (MIBiG)
+# CÓDIGO PYTHON - EXTRACCIÓN DE GENES DE INTERÉS
+from Bio import SeqIO
+import pandas as pd
+
+# Cargar genoma
+genoma = SeqIO.read("Streptomyces_coelicolor_A3_2.gb", "genbank")
+
+# Definir regiones de interés (basado en antiSMASH)
+regiones_interes = [
+    {"nombre": "actinorhodin", "start": 5494930, "end": 5567424, "tipo": "T2PKS"},
+    {"nombre": "undecylprodigiosin", "start": 6423650, "end": 6476442, "tipo": "prodigiosin"},
+    {"nombre": "coelichelin", "start": 493989, "end": 552325, "tipo": "NRP-metallophore"},
+    {"nombre": "CDA", "start": 3523335, "end": 3603988, "tipo": "NRPS"}
+]
+
+# Extraer cada región
+for region in regiones_interes:
+    seq_region = genoma[region["start"]:region["end"]]
+    seq_region.id = f"S_coelicolor_{region['nombre']}"
+    seq_region.description = f"{region['tipo']} cluster {region['start']}-{region['end']}"
+    SeqIO.write(seq_region, f"cluster_{region['nombre']}.fasta", "fasta")
+    print(f"ExtraÃ­do: cluster_{region['nombre']}.fasta - {len(seq_region)} pb")
+
+# Crear tabla de resumen
+df = pd.DataFrame(regiones_interes)
+df.to_csv("clusters_s_coelicolor.csv", index=False)
+print("\nTabla de clusters guardada en clusters_s_coelicolor.csv")

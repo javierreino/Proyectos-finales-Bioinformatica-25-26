@@ -1,0 +1,15 @@
+# Crear entorno conda para el proyecto
+conda create -n pseudomonas_sideroforos python=3.9
+conda activate pseudomonas_sideroforos
+
+# Instalar herramientas bioinformáticas
+conda install -c bioconda antismash
+conda install -c bioconda clinker
+conda install -c bioconda ncbi-genome-download
+conda install -c conda-forge biopython
+conda install -c conda-forge pandas numpy matplotlib seaborn jupyter
+
+# Verificar instalaciones
+antismash --version
+clinker --version
+python -c "import Bio; print(f'Biopython {Bio.__version__}')"

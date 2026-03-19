@@ -1,0 +1,19 @@
+# Crear entorno conda para el proyecto
+conda create -n streptomyces_bgc python=3.9
+conda activate streptomyces_bgc
+
+# Instalar herramientas bioinformÃ¡ticas
+conda install -c bioconda antismash
+conda install -c bioconda ncbi-genome-download
+conda install -c bioconda entrez-direct
+conda install -c bioconda seqkit
+conda install -c bioconda hmmer
+conda install -c bioconda clinker
+conda install -c conda-forge biopython pandas numpy matplotlib seaborn jupyter
+
+# Descargar bases de datos para antiSMASH
+download-antismash-databases
+
+# Verificar instalaciones
+antismash --version
+echo "Biopython: $(python -c 'import Bio; print(Bio.__version__)')"

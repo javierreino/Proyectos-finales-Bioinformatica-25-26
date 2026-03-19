@@ -1,0 +1,158 @@
+# Descarga de genomas de cepas patógenas
+# Pseudomonas aeruginosa PA14
+wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/014/625/GCF_000014625.1_ASM1462v1/GCF_000014625.1_ASM1462v1_genomic.gbff.gz
+gunzip GCF_000014625.1_ASM1462v1_genomic.gbff.gz
+mv GCF_000014625.1_ASM1462v1_genomic.gbff Pseudomonas_aeruginosa_PA14.gb
+
+# Pseudomonas aeruginosa PAO1 (NC_002516.2)
+wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/006/765/GCF_000006765.1_ASM676v1/GCF_000006765.1_ASM676v1_genomic.gbff.gz
+gunzip GCF_000006765.1_ASM676v1_genomic.gbff.gz
+mv GCF_000006765.1_ASM676v1_genomic.gbff Pseudomonas_aeruginosa_PAO1.gb
+
+# Descarga de genomas de cepas ambientales
+# Pseudomonas fluorescens SBW25 (OV986001.1)
+wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/009/225/GCF_000009225.2_ASM922v2/GCF_000009225.2_ASM922v2_genomic.gbff.gz
+gunzip GCF_000009225.2_ASM922v2_genomic.gbff.gz
+mv GCF_000009225.2_ASM922v2_genomic.gbff Pseudomonas_fluorescens_SBW25.gb
+
+# Instalar herramienta para descarga automatizada
+pip install ncbi-genome-download
+
+# Descargar genomas por acceso específico
+ncbi-genome-download -A NC_008463,NC_002516.2,OV986001.1 bacteria -o genomas/
+
+# Instalación mediante conda
+conda create -n antismash python=3.8
+conda activate antismash
+conda install -c bioconda antismash
+
+# Descargar bases de datos (necesario para antiSMASH)
+download-antismash-databases
+
+# Ejecutar antiSMASH para cada genoma
+antismash --genefinding-tool prodigal \
+          --output-dir antismash_PA14 \
+          --clusterblast \
+          --asf \
+          --full-hmmer \
+          --cassis \
+          Pseudomonas_aeruginosa_PA14.gb
+
+antismash --genefinding-tool prodigal \
+          --output-dir antismash_PAO1 \
+          --clusterblast \
+          --asf \
+          --full-hmmer \
+          --cassis \
+          Pseudomonas_aeruginosa_PAO1.gb
+
+antismash --genefinding-tool prodigal \
+          --output-dir antismash_SBW25 \
+          --clusterblast \
+          --asf \
+          --full-hmmer \
+          --cassis \
+          Pseudomonas_fluorescens_SBW25.gb
+
+# Filtrar resultados para encontrar clústeres tipo NRP-metallophore (sideróforos)
+grep -i "NRP-metallophore" antismash_PA14/*.json
+grep -i "NRP-metallophore" antismash_PAO1/*.json
+grep -i "NRP-metallophore" antismash_SBW25/*.json
+
+# Extraer regiones específicas de sideróforos
+# Pioverdina, pioquelina, etc.
+
+# Instalación mediante pip
+pip install clinker
+
+# O mediante conda
+conda install -c bioconda Clinker
+
+# Extraer regiones de interés de los resultados de antiSMASH
+# Crear archivos GenBank con solo la región del operón de sideróforos
+
+# Ejemplo para extraer región de P. aeruginosa PA14
+# (coordenadas aproximadas, ajustar según resultados de antiSMASH)
+python -c "
+from Bio import SeqIO
+record = SeqIO.read('Pseudomonas_aeruginosa_PA14.gb', 'genbank')
+# Extraer región 100000-200000 (ejemplo)
+region = record[100000:200000]
+SeqIO.write(region, 'PA14_siderophore_region.gbk', 'genbank')
+"
+# Comparar todas las regiones de sideróforos
+clinker PA14_siderophore_region.gbk \
+        PAO1_siderophore_region.gbk \
+        SBW25_siderophore_region.gbk \
+        -o clinker_output \
+        -p siderophore_synteny.html \
+        -i 50  # Identidad mínima 50%
+
+# CÓDIGO PYTHON - MATRIZ DE PRESENCIA/AUSENCIA DE GENES
+import pandas as pd
+import json
+import glob
+
+# Definir cepas y genes de interés
+cepas = ['PA14', 'PAO1', 'SBW25']
+genes_interes = ['NRPS_core', 'transportador_ABC', 'regulador', 'sintetasa_accesoria', 
+                 'receptor', 'permeasa', 'tioseterasa', 'oxidoreductasa']
+
+# Crear matriz vacía
+M = pd.DataFrame(0, index=cepas, columns=genes_interes)
+
+# Procesar resultados de antiSMASH para cada cepa
+for cepa in cepas:
+    archivos_json = glob.glob(f'antismash_{cepa}/*.json')
+    for archivo in archivos_json:
+        with open(archivo, 'r') as f:
+            data = json.load(f)
+            # Extraer regiones de sideróforos
+            for region in data.get('records', []):
+                if 'NRP-metallophore' in str(region.get('products', [])):
+                    # Marcar presencia de genes centrales
+                    M.loc[cepa, 'NRPS_core'] = 1
+                    
+                    # Buscar genes accesorios
+                    for gene in region.get('genes', []):
+                        if 'ABC' in gene.get('function', ''):
+                            M.loc[cepa, 'transportador_ABC'] = 1
+                        if 'regulator' in gene.get('function', ''):
+                            M.loc[cepa, 'regulador'] = 1
+                        # ... etc
+
+# Guardar matriz
+M.to_csv('matriz_presencia_ausencia_sideroforos.csv')
+print("Matriz generada:")
+print(M)
+
+
+# CÓDIGO PYTHON - HEATMAP DE PRESENCIA/AUSENCIA
+import seaborn as sns
+import matplotlib.pyplot as plt
+import pandas as pd
+
+# Cargar matriz
+M = pd.read_csv('matriz_presencia_ausencia_sideroforos.csv', index_col=0)
+
+# Crear heatmap
+plt.figure(figsize=(10, 6))
+ax = sns.heatmap(M, annot=True, cmap="YlGnBu", linewidths=.5, 
+                 cbar_kws={'label': 'Presencia (1) / Ausencia (0)'})
+
+plt.title('Presencia de Genes del Operón de Sideróforos en Pseudomonas spp.', fontsize=14)
+plt.xlabel('Genes', fontsize=12)
+plt.ylabel('Cepas', fontsize=12)
+plt.tight_layout()
+plt.savefig('heatmap_sideroforos.png', dpi=300)
+plt.show()
+
+# Los resultados de clinker generan un archivo HTML interactivo
+# Abrir en navegador
+firefox clinker_output/siderophore_synteny.html
+
+# También se puede generar una imagen PNG
+clinker PA14_siderophore_region.gbk PAO1_siderophore_region.gbk SBW25_siderophore_region.gbk \
+        -o clinker_output \
+        -p siderophore_synteny.png
+
