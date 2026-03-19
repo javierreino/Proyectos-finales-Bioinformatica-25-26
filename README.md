@@ -1,0 +1,62 @@
+# Proyectos Finales de Bioinformática 2025-2026
+
+![Bioinformática](https://img.shields.io/badge/Bioinformática-Investigación-blue)
+![Universidad](https://img.shields.io/badge/Universidad-Proyectos%20Finales-green)
+
+## 📋 Descripción General
+Este repositorio contiene los proyectos finales del curso de Bioinformática 2025-2026, enfocados en el análisis de datos biológicos mediante herramientas computacionales.
+
+## 📂 Proyectos Incluidos
+
+---
+
+### 1. 🧬 ANÁLISIS IN SILICO DE GENES ASOCIADOS A LA TOLERANCIA A METALES PESADOS EN BACTERIAS AMBIENTALES
+**PROYECTO FINAL - BIOINFORMÁTICA**
+
+**Descripción:** Estudio computacional de genes involucrados en la tolerancia a metales pesados en bacterias ambientales, utilizando herramientas bioinformáticas para identificar y caracterizar secuencias genéticas de interés.
+
+**Integrantes:**
+- Nicolás Betancourt - [@nicolasbetancourt](https://github.com/nicolasbetancourt)
+- Leslie Cordero - [@lesliecordero](https://github.com/lesliecordero)
+- Lili Laguna - [@lililaguna](https://github.com/lililaguna)
+- Daniela López - [@danielalopez](https://github.com/danielalopez)
+
+**Herramientas utilizadas:**
+- BLAST para búsqueda de genes homólogos
+- GeneMark para predicción de genes
+- ClustalW para alineamientos múltiples
+- MEGA para análisis filogenético
+
+---
+
+### 2. 🔬 Conservación estructural y análisis filogenético de cutinasas bacterianas, fúngicas y su potencial en la biodegradación de poliésteres sintéticos
+
+**Descripción:** Estudio de cutinasas bacterianas y fúngicas para evaluar su potencial en la biodegradación de poliésteres sintéticos mediante análisis estructural y filogenético.
+
+**Autores:**
+- Cristopher Flores - [@cristopherflores](https://github.com/cristopherflores)
+- Cristhoper Bedoya - [@cristhoperbedoya](https://github.com/cristhoperbedoya)
+- Javier Reino - [@javierreino](https://github.com/javierreino)
+
+**Herramientas utilizadas:**
+- BLAST para búsqueda de homólogos
+- MEGA para análisis filogenético
+- PyMOL para visualización estructural
+- SWISS-MODEL para modelado por homología
+
+---
+
+### 3. 🌱 Diversidad taxonómica y funcional en microbiomas de suelos agrícolas amazónicos
+
+**Descripción:** Análisis de la diversidad microbiana en suelos agrícolas de la región amazónica utilizando herramientas bioinformáticas para caracterizar la composición taxonómica y funcional del microbioma.
+
+**Autores:**
+- Nayelie Yánez - [@nayelieyanez](https://github.com/nayelieyanez)
+- Adrián Cango - [@adriancango](https://github.com/adriancango)
+- Jamile Guerrón - [@jamileguerron](https://github.com/jamileguerron)
+
+**Herramientas utilizadas:**
+- QIIME2 para análisis de diversidad microbiana
+- R (phyloseq, ggplot2) para visualización de datos
+- Python para procesamiento de secuencias
+- PICRUSt para predicción funcional
