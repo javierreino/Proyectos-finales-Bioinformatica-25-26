@@ -16,10 +16,10 @@ Este repositorio contiene los proyectos finales del curso de Bioinformática 202
 **Descripción:** Estudio computacional de genes involucrados en la tolerancia a metales pesados en bacterias ambientales, utilizando herramientas bioinformáticas para identificar y caracterizar secuencias genéticas de interés.
 
 **Integrantes:**
-- Nicolás Betancourt - [@nicolasbetancourt](https://github.com/nicolasbetancourt)
-- Leslie Cordero - [@lesliecordero](https://github.com/lesliecordero)
-- Lili Laguna - [@lililaguna](https://github.com/lililaguna)
-- Daniela López - [@danielalopez](https://github.com/danielalopez)
+- Nicolás Betancourt 
+- Leslie Cordero 
+- Lili Laguna 
+- Daniela López 
 
 **Herramientas utilizadas:**
 - BLAST para búsqueda de genes homólogos
@@ -34,9 +34,9 @@ Este repositorio contiene los proyectos finales del curso de Bioinformática 202
 **Descripción:** Estudio de cutinasas bacterianas y fúngicas para evaluar su potencial en la biodegradación de poliésteres sintéticos mediante análisis estructural y filogenético.
 
 **Autores:**
-- Cristopher Flores - [@cristopherflores](https://github.com/cristopherflores)
-- Cristhoper Bedoya - [@cristhoperbedoya](https://github.com/cristhoperbedoya)
-- Javier Reino - [@javierreino](https://github.com/javierreino)
+- Cristopher Flores 
+- Cristhoper Bedoya 
+- Javier Reino 
 
 **Herramientas utilizadas:**
 - BLAST para búsqueda de homólogos
@@ -51,9 +51,9 @@ Este repositorio contiene los proyectos finales del curso de Bioinformática 202
 **Descripción:** Análisis de la diversidad microbiana en suelos agrícolas de la región amazónica utilizando herramientas bioinformáticas para caracterizar la composición taxonómica y funcional del microbioma.
 
 **Autores:**
-- Nayelie Yánez - [@nayelieyanez](https://github.com/nayelieyanez)
-- Adrián Cango - [@adriancango](https://github.com/adriancango)
-- Jamile Guerrón - [@jamileguerron](https://github.com/jamileguerron)
+- Nayelie Yánez 
+- Adrián Cango 
+- Jamile Guerrón 
 
 **Herramientas utilizadas:**
 - QIIME2 para análisis de diversidad microbiana
