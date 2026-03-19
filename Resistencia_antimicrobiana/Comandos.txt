@@ -1,0 +1,385 @@
+# Instalación de Entrez Direct (herramientas de línea de comandos para NCBI)
+sh -c "$(curl -fsSL https://ftp.ncbi.nlm.nih.gov/entrez/entrezdirect/install-edirect.sh)"
+export PATH=${HOME}/edirect:${PATH}
+
+# Búsqueda y descarga de genes blaKPC
+# blaKPC en Klebsiella pneumoniae
+esearch -db nucleotide -query "blaKPC[Gene Name] AND Klebsiella pneumoniae[Organism]" | \
+  efetch -format fasta > secuencias_blaKPC_Kpneumoniae.fasta
+
+# blaKPC en Pseudomonas aeruginosa  
+esearch -db nucleotide -query "blaKPC[Gene Name] AND Pseudomonas aeruginosa[Organism]" | \
+  efetch -format fasta > secuencias_blaKPC_Paeruginosa.fasta
+
+# Búsqueda y descarga de genes blaIMP
+esearch -db nucleotide -query "blaIMP[Gene Name] AND (Klebsiella pneumoniae OR Pseudomonas aeruginosa)[Organism]" | \
+  efetch -format fasta > secuencias_blaIMP.fasta
+
+# Búsqueda y descarga de genes blaTEM
+esearch -db nucleotide -query "blaTEM[Gene Name] AND (Klebsiella pneumoniae OR Pseudomonas aeruginosa)[Organism]" | \
+  efetch -format fasta > secuencias_blaTEM.fasta
+
+# Búsqueda y descarga de genes tetC
+esearch -db nucleotide -query "tetC[Gene Name] AND (Klebsiella pneumoniae OR Pseudomonas aeruginosa)[Organism]" | \
+  efetch -format fasta > secuencias_tetC.fasta
+# Crear lista de accesiones (basado en Tabla 1 del proyecto)
+cat > accesiones.txt << EOF
+NG_050085
+NG_049249.1
+NG_049250.1
+KU216748.1
+PX970391.1
+NG_074720
+PV_103221
+MZ570431
+OM317762
+NG_245173
+PV_759336
+LC_467967
+NG_049202
+NG_049197
+NG_049222
+LC_716395
+LC_716396
+PQ_493434
+NG_049180
+NG_245871
+NG_24420
+PX_488331
+NG_050001
+MK_113955
+MK_113954
+Mk_113953
+MK_113952
+MZ_310390
+JN188364
+PQ_359513
+PX396140
+PX396141
+PQ359513.1
+DQ_910309
+LC_003513
+LC_003510
+LC_005508.1
+LC_003506.1
+Lc_003505
+LC_003503.1
+LC_004498
+EOF
+
+# Descargar todas las secuencias por lista
+cat accesiones.txt | while read acc; do
+  echo "Descargando $acc..."
+  esearch -db nucleotide -query "$acc" | efetch -format fasta >> todas_secuencias.fasta
+done
+
+# Alternativa: descarga directa con epost
+cat accesiones.txt | epost -db nucleotide | efetch -format fasta > todas_secuencias.fasta
+# Instalar ncbi-acc-download
+pip install ncbi-acc-download
+
+# Descargar todas las accesiones
+ncbi-acc-download --format fasta $(cat accesiones.txt | tr '\n' ' ')
+# Crear directorios para cada gen
+mkdir -p secuencias/{blaKPC,blaIMP,blaTEM,tetc}
+
+# Separar por patrones en el nombre
+grep -l "blaKPC" todas_secuencias.fasta | xargs -I {} cp {} secuencias/blaKPC/
+grep -l "blaIMP" todas_secuencias.fasta | xargs -I {} cp {} secuencias/blaIMP/
+grep -l "blaTEM" todas_secuencias.fasta | xargs -I {} cp {} secuencias/blaTEM/
+grep -l -i "tetC" todas_secuencias.fasta | xargs -I {} cp {} secuencias/tetc/
+
+# Alternativa: usar awk para separar archivos multi-FASTA
+awk '{
+  if ($0 ~ /^>/) {
+    if ($0 ~ /blaKPC/) file="secuencias/blaKPC.fasta"
+    else if ($0 ~ /blaIMP/) file="secuencias/blaIMP.fasta"
+    else if ($0 ~ /blaTEM/) file="secuencias/blaTEM.fasta"
+    else if ($0 ~ /tetC/) file="secuencias/tetc.fasta"
+    else file="secuencias/otros.fasta"
+  }
+  print > file
+}' todas_secuencias.fasta
+# Instalación de MAFFT
+conda install -c bioconda mafft
+
+# Alineamiento para cada gen
+for gen in blaKPC blaIMP blaTEM tetc; do
+  echo "Alineando $gen..."
+  mafft --auto secuencias/${gen}.fasta > alineamientos/${gen}_alineado.fasta
+done
+
+# Con parámetros específicos para alta precisión
+mafft --localpair --maxiterate 1000 secuencias/blaIMP.fasta > alineamientos/blaIMP_alineado_alta.fasta
+# Instalación de Clustal Omega
+conda install -c bioconda clustalo
+
+# Alineamiento con Clustal Omega
+for gen in blaKPC blaIMP blaTEM tetc; do
+  clustalo -i secuencias/${gen}.fasta -o alineamientos/${gen}_clustalo.fasta --verbose
+done
+
+# Generar salida en diferentes formatos
+clustalo -i secuencias/blaTEM.fasta -o alineamientos/blaTEM_clustalo.aln --outfmt=clu
+clustalo -i secuencias/blaTEM.fasta -o alineamientos/blaTEM_phylip.phy --outfmt=phy
+# Ver estadísticas del alineamiento
+seqkit stat alineamientos/*.fasta
+
+# Calcular matriz de identidad (usando BioPython)
+python -c "
+from Bio import AlignIO
+import numpy as np
+align = AlignIO.read('alineamientos/blaIMP_alineado.fasta', 'fasta')
+n = len(align)
+matriz = np.zeros((n, n))
+for i in range(n):
+    for j in range(n):
+        identidad = sum(align[i][k] == align[j][k] for k in range(align.get_alignment_length())) / align.get_alignment_length()
+        matriz[i, j] = identidad
+print('Matriz de identidad generada')
+np.savetxt('identidad_blaIMP.csv', matriz, delimiter=',')
+"
+# MEGA no tiene interfaz de línea de comandos completa
+# Los árboles se construyeron usando la interfaz gráfica de MEGA
+# Parámetros utilizados:
+# - Método: Neighbor-Joining
+# - Modelo: p-distance
+# - Bootstrap: 1000 réplicas
+# Instalación de IQ-TREE
+conda install -c bioconda iqtree
+
+# Construir árbol con IQ-TREE para cada gen
+for gen in blaKPC blaIMP blaTEM tetc; do
+  iqtree -s alineamientos/${gen}_alineado.fasta \
+         -m MFP \           # ModelFinder Plus (selecciona mejor modelo)
+         -bb 1000 \          # Ultrafast Bootstrap 1000 réplicas
+         -nt AUTO \          # Hilos automáticos
+         -pre arboles/${gen} # Prefijo de salida
+done
+
+# Con modelo específico (p-distance para nucleótidos)
+iqtree -s alineamientos/blaIMP_alineado.fasta \
+       -m JC69 \            # Modelo Jukes-Cantor (equivalente a p-distance)
+       -b 1000 \            # Bootstrap estándar
+       -nt 4 \
+       -pre arboles/blaIMP_jc
+# Instalación de FastTree
+conda install -c bioconda fasttree
+
+# Construir árbol con FastTree
+FastTree -nt alineamientos/blaIMP_alineado.fasta > arboles/blaIMP_fasttree.nwk
+
+# Con bootstrap
+FastTree -nt -boot 1000 alineamientos/blaIMP_alineado.fasta > arboles/blaIMP_fasttree_boot.nwk
+# MEGA-CC (Command Line)
+megacc -a megacc_alignment.mao \
+       -d alineamientos/blaIMP_alineado.fasta \
+       -o matrices/blaIMP_pdistance.txt \
+       -t "Compute pairwise distances"
+# CÓDIGO PYTHON - CÁLCULO DE MATRICES P-DISTANCE
+from Bio import AlignIO
+from Bio.Phylo.TreeConstruction import DistanceCalculator
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Función para calcular matriz p-distance
+def calcular_matriz_pdistance(archivo_alineamiento, nombre_gen):
+    # Cargar alineamiento
+    alineamiento = AlignIO.read(archivo_alineamiento, "fasta")
+    
+    # Crear calculador de distancias (modelo 'identity' = p-distance)
+    calculator = DistanceCalculator('identity')
+    distance_matrix = calculator.get_distance(alineamiento)
+    
+    # Convertir a DataFrame
+    nombres = [record.id[:15] for record in alineamiento]  # IDs truncados
+    df = pd.DataFrame(distance_matrix.matrix, index=nombres, columns=nombres)
+    
+    # Guardar matriz
+    df.to_csv(f"matrices/{nombre_gen}_pdistance.csv")
+    
+    # Crear heatmap
+    plt.figure(figsize=(12, 10))
+    sns.heatmap(df, annot=True, fmt='.3f', cmap='YlOrRd', 
+                xticklabels=True, yticklabels=True)
+    plt.title(f'Matriz p-distance - Gen {nombre_gen}')
+    plt.tight_layout()
+    plt.savefig(f"figuras/heatmap_{nombre_gen}.png", dpi=300)
+    plt.close()
+    
+    return df
+
+# Calcular para cada gen
+genes = ['blaKPC', 'blaIMP', 'blaTEM', 'tetc']
+for gen in genes:
+    print(f"Calculando p-distance para {gen}...")
+    df = calcular_matriz_pdistance(f'alineamientos/{gen}_alineado.fasta', gen)
+    print(f"Valores mín: {df.min().min():.3f}, máx: {df.max().max():.3f}")
+    print()
+# CÓDIGO R - CÁLCULO DE P-DISTANCE Y HEATMAP
+library(ape)
+library(seqinr)
+library(pheatmap)
+
+# Cargar alineamiento
+alineamiento <- read.alignment("alineamientos/blaIMP_alineado.fasta", format = "fasta")
+
+# Calcular matriz de distancias (p-distance)
+distancia <- dist.alignment(alineamiento, matrix = "identity")
+
+# Convertir a matriz
+matriz <- as.matrix(distancia)
+
+# Guardar matriz
+write.csv(matriz, "matrices/blaIMP_pdistance_R.csv")
+
+# Crear heatmap
+png("figuras/heatmap_blaIMP_R.png", width = 10, height = 8, units = "in", res = 300)
+pheatmap(matriz, 
+         main = "Matriz p-distance - Gen blaIMP",
+         display_numbers = TRUE,
+         number_format = "%.3f",
+         fontsize_number = 6)
+dev.off()
+# CÓDIGO PYTHON - HEATMAPS PERSONALIZADOS PARA CADA GEN
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Configuración global
+plt.rcParams['figure.figsize'] = (14, 12)
+plt.rcParams['font.size'] = 10
+
+# Función para crear heatmap mejorado
+def crear_heatmap_mejorado(archivo_matriz, titulo, archivo_salida):
+    # Cargar matriz
+    df = pd.read_csv(archivo_matriz, index_col=0)
+    
+    # Crear máscara para triángulo superior (opcional)
+    mask = np.triu(np.ones_like(df, dtype=bool))
+    
+    # Configurar heatmap
+    plt.figure(figsize=(16, 14))
+    
+    # Heatmap con anotaciones
+    sns.heatmap(df, 
+                annot=True, 
+                fmt='.3f',
+                cmap='YlOrRd',  # Amarillo-Naranja-Rojo (mejor contraste)
+                linewidths=0.5,
+                linecolor='gray',
+                cbar_kws={'label': 'p-distance', 'shrink': 0.8},
+                mask=mask,  # Solo mostrar triángulo inferior
+                square=True)
+    
+    plt.title(titulo, fontsize=16, pad=20)
+    plt.xlabel('Secuencias', fontsize=12)
+    plt.ylabel('Secuencias', fontsize=12)
+    plt.xticks(rotation=45, ha='right')
+    plt.yticks(rotation=0)
+    
+    plt.tight_layout()
+    plt.savefig(archivo_salida, dpi=300, bbox_inches='tight')
+    plt.show()
+    plt.close()
+
+# Crear heatmaps para cada gen
+crear_heatmap_mejorado('matrices/blaIMP_pdistance.csv', 
+                      'Matriz p-distance - Gen blaIMP (mayor variabilidad: hasta 60%)',
+                      'figuras/heatmap_blaIMP_final.png')
+
+crear_heatmap_mejorado('matrices/tetc_pdistance.csv',
+                      'Matriz p-distance - Gen tetC (menor variabilidad: <1.3%)',
+                      'figuras/heatmap_tetc_final.png')
+
+crear_heatmap_mejorado('matrices/blaTEM_pdistance.csv',
+                      'Matriz p-distance - Gen blaTEM (variabilidad intermedia)',
+                      'figuras/heatmap_blaTEM_final.png')
+
+crear_heatmap_mejorado('matrices/blaKPC_pdistance.csv',
+                      'Matriz p-distance - Gen blaKPC (baja variabilidad)',
+                      'figuras/heatmap_blaKPC_final.png')
+# CÓDIGO PYTHON - ANÁLISIS COMPARATIVO DE VARIABILIDAD
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+# Cargar todas las matrices
+genes = ['blaKPC', 'blaIMP', 'blaTEM', 'tetc']
+estadisticas = []
+
+for gen in genes:
+    df = pd.read_csv(f'matrices/{gen}_pdistance.csv', index_col=0)
+    
+    # Obtener valores de la matriz (sin diagonales)
+    valores = df.values
+    np.fill_diagonal(valores, np.nan)
+    valores = valores[~np.isnan(valores)]
+    
+    estadisticas.append({
+        'Gen': gen,
+        'Media': np.mean(valores),
+        'Mediana': np.median(valores),
+        'Mínimo': np.min(valores),
+        'Máximo': np.max(valores),
+        'Desv_Est': np.std(valores),
+        'Rango': np.max(valores) - np.min(valores)
+    })
+    
+    print(f"\n=== Gen {gen} ===")
+    print(f"Media: {np.mean(valores):.4f}")
+    print(f"Máximo: {np.max(valores):.4f}")
+    print(f"Interpretación: {np.max(valores)*100:.1f}% divergencia máxima")
+
+# Crear DataFrame de estadísticas
+df_est = pd.DataFrame(estadisticas)
+df_est.to_csv('estadisticas_variabilidad.csv', index=False)
+print("\n=== RESUMEN DE VARIABILIDAD ===")
+print(df_est.to_string(index=False))
+
+# Gráfico comparativo
+plt.figure(figsize=(10, 6))
+sns.barplot(data=df_est, x='Gen', y='Máximo', palette='viridis')
+plt.title('Máxima divergencia por gen (p-distance)')
+plt.ylabel('p-distance máxima')
+plt.xlabel('Gen')
+plt.axhline(y=0.6, color='r', linestyle='--', label='60% (blaIMP)')
+plt.axhline(y=0.013, color='g', linestyle='--', label='1.3% (tetC)')
+plt.legend()
+plt.savefig('figuras/comparacion_variabilidad.png', dpi=300)
+plt.show()
+# Calcular consenso y conservación con EMBOSS
+conda install -c bioconda emboss
+
+# Calcular perfil de conservación
+for gen in blaKPC blaIMP blaTEM tetc; do
+  plotcon -sequences alineamientos/${gen}_alineado.fasta \
+          -graph png \
+          -goutfile figuras/conservacion_${gen}.png \
+          -winsize 4
+done
+
+# Calcular secuencia consenso
+for gen in blaKPC blaIMP blaTEM tetc; do
+  cons -sequence alineamientos/${gen}_alineado.fasta \
+       -outseq consensos/${gen}_consenso.fasta \
+       -plurality 0.5  # 50% mayoría
+done
+echo "=== ANÁLISIS GEN blaIMP ==="
+echo "Número de secuencias: $(grep -c "^>" secuencias/blaIMP.fasta)"
+echo "Variabilidad máxima: 60% (p-distance)"
+echo "Interpretación: Mayor variabilidad genética del estudio"
+echo "=== ANÁLISIS GEN tetC ==="
+echo "Número de secuencias: $(grep -c "^>" secuencias/tetc.fasta)"
+echo "Variabilidad máxima: <1.3% (p-distance)"
+echo "Interpretación: Secuencias casi idénticas"
+echo "=== ANÁLISIS GEN blaTEM ==="
+echo "Variabilidad: Intermedia (entre tetC y blaIMP)"
+echo "Interpretación: Evolución gradual con mutaciones puntuales"
+
+echo "=== ANÁLISIS GEN blaKPC ==="
+echo "Variabilidad: Baja"
+echo "Interpretación: Homogeneidad consistente con expansión hospitalaria"
