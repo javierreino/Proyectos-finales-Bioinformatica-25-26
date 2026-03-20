@@ -1,4 +1,4 @@
-# Proyectos Finales de Bioinformática 2025-2026
+# Bioinformática Ikiam 2025-2026
 
 ![Bioinformática](https://img.shields.io/badge/Bioinformática-Investigación-blue)
 ![Universidad](https://img.shields.io/badge/Universidad-Proyectos%20Finales-green)
